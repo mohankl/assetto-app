@@ -61,10 +61,24 @@ class AuthProvider with ChangeNotifier {
       developer.log('Error in signInWithGoogle: $e\n$stackTrace',
           name: 'AuthProvider');
       _isLoading = false;
-      _error = e.toString();
+      _error = _formatSignInError(e);
       notifyListeners();
       return false;
     }
+  }
+
+  String _formatSignInError(Object error) {
+    final message = error.toString();
+    if (message.contains('origin_mismatch') ||
+        message.contains('Authorization Error')) {
+      return 'Google Sign-In blocked: your site URL is not registered in '
+          'Google Cloud Console. Add your app URL under Authorized JavaScript '
+          'origins for the Web OAuth client (see Firebase/Google Cloud setup).';
+    }
+    if (error is FirebaseAuthException) {
+      return error.message ?? error.code;
+    }
+    return message;
   }
 
   Future<void> signOut() async {

@@ -1,91 +1,49 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <!--
-    If you are serving your web app in a path other than the root, change the
-    href value below to reflect the base path you are serving from.
-
-    The path provided below has to start and end with a slash "/" in order for
-    it to work correctly.
-
-    For more details:
-    * https://developer.mozilla.org/en-US/docs/Web/HTML/Element/base
-
-    This is a placeholder for base href that will be replaced by the value of
-    the `--base-href` argument provided to `flutter build`.
-  -->
   <base href="$FLUTTER_BASE_HREF">
 
   <meta charset="UTF-8">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
-  <meta name="description" content="A property management application.">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="description" content="Assetto — manage properties, tenants, and transactions from your phone.">
+  <meta name="theme-color" content="#009688">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="google-signin-client_id" content="184273620099-l4h235ihfir7vhis48afpctsg9gidaii.apps.googleusercontent.com">
 
   <!-- iOS meta tags & icons -->
   <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black">
-  <meta name="apple-mobile-web-app-title" content="assetto">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Assetto">
   <link rel="apple-touch-icon" href="icons/Icon-192.png">
 
-  <!-- Favicon -->
   <link rel="icon" type="image/png" href="favicon.png"/>
-
   <title>Assetto</title>
   <link rel="manifest" href="manifest.json">
 
-  <script>
-    // The value below is injected by flutter build, do not touch.
-    var serviceWorkerVersion = '{{flutter_service_worker_version}}';
-  </script>
-  <!-- This script adds the flutter initialization JS code -->
-  <script src="flutter.js" defer></script>
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      background-color: #eceff1;
+      overscroll-behavior: none;
+      -webkit-tap-highlight-color: transparent;
+      touch-action: manipulation;
+    }
 
-  <!-- Firebase Configuration -->
-  <script type="module">
-    // Import the functions you need from the SDKs you need
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
-    import { getAuth } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
-    import { getDatabase } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-database.js";
-    import { getAnalytics } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-analytics.js";
-    import { getPerformance } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-performance.js";
-    import { getStorage } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-storage.js";
-
-    // Your web app's Firebase configuration
-    const firebaseConfig = {
-      apiKey: "AIzaSyBWKys0UDfToRQVQ4KCVJ6kp0wLFfbz4Tk",
-      authDomain: "assetto-7cad8.firebaseapp.com",
-      databaseURL: "https://assetto-7cad8-default-rtdb.asia-southeast1.firebasedatabase.app",
-      projectId: "assetto-7cad8",
-      storageBucket: "assetto-7cad8.firebasestorage.app",
-      messagingSenderId: "184273620099",
-      appId: "1:184273620099:web:c1b2fb337556adf158dfb6",
-      measurementId: "G-T57Y47R3YR"
-    };
-
-    // Initialize Firebase
-    const app = initializeApp(firebaseConfig);
-    const auth = getAuth(app);
-    const database = getDatabase(app);
-    const analytics = getAnalytics(app);
-    const performance = getPerformance(app);
-    const storage = getStorage(app);
-
-    // Make Firebase available globally
-    window.firebase = {
-      app: app,
-      auth: auth,
-      database: database,
-      analytics: analytics,
-      performance: performance,
-      storage: storage
-    };
-  </script>
+    .loading {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: #009688;
+    }
+  </style>
 </head>
 <body>
-  <script>
-    window.addEventListener('load', function(ev) {
-      // Download main.dart.js
-      _flutter.loader.load();
-    });
-  </script>
+  <div class="loading" id="loading">Loading Assetto…</div>
+  <script src="flutter_bootstrap.js" async></script>
 </body>
 </html>

@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/data_provider.dart';
 import 'package:intl/intl.dart';
-import 'dart:io';
 import 'package:image_picker/image_picker.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import '../models/tenant.dart';
@@ -281,10 +280,12 @@ class TenantsScreen extends StatelessWidget {
 
       if (pickedFile == null) return null;
 
-      final file = File(pickedFile.path);
       final fileName = 'aadhar_${DateTime.now().millisecondsSinceEpoch}.jpg';
       final ref =
           FirebaseStorage.instance.ref().child('aadhar_images/$fileName');
+      final bytes = await pickedFile.readAsBytes();
+
+      if (!context.mounted) return null;
 
       showDialog(
         context: context,
@@ -294,7 +295,10 @@ class TenantsScreen extends StatelessWidget {
         ),
       );
 
-      final uploadTask = ref.putFile(file);
+      final uploadTask = ref.putData(
+        bytes,
+        SettableMetadata(contentType: 'image/jpeg'),
+      );
       uploadTask.snapshotEvents.listen((TaskSnapshot snapshot) {
         final progress =
             (snapshot.bytesTransferred / snapshot.totalBytes) * 100;

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'dart:developer' as developer;
 import 'dart:async';
 import 'package:provider/provider.dart';
@@ -6,6 +7,8 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_database/firebase_database.dart' as firebase_db;
 import 'package:firebase_performance/firebase_performance.dart';
 import 'package:firebase_analytics/firebase_analytics.dart';
+import 'firebase_options.dart';
+import 'widgets/mobile_web_shell.dart';
 import 'screens/dashboard_screen.dart';
 import 'screens/assets_screen.dart';
 import 'screens/tenants_screen.dart';
@@ -21,20 +24,21 @@ Future<void> initializeFirebase() async {
   try {
     developer.log('Starting Firebase initialization...', name: 'AppInit');
 
-    // Initialize Firebase for Android
-    await Firebase.initializeApp();
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
     developer.log('Firebase initialization completed', name: 'AppInit');
 
-    // Set the database URL
     firebase_db.FirebaseDatabase.instance.databaseURL =
-        'https://assetto-7cad8-default-rtdb.asia-southeast1.firebasedatabase.app';
+        DefaultFirebaseOptions.currentPlatform.databaseURL;
     developer.log('Database URL set successfully', name: 'AppInit');
 
-    // Configure Firebase settings for Android
-    firebase_db.FirebaseDatabase.instance.setPersistenceEnabled(true);
-    firebase_db.FirebaseDatabase.instance
-        .setPersistenceCacheSizeBytes(10000000);
-    developer.log('Firebase settings configured successfully', name: 'AppInit');
+    if (!kIsWeb) {
+      firebase_db.FirebaseDatabase.instance.setPersistenceEnabled(true);
+      firebase_db.FirebaseDatabase.instance
+          .setPersistenceCacheSizeBytes(10000000);
+      developer.log('Firebase settings configured successfully', name: 'AppInit');
+    }
 
     // Enable performance monitoring and analytics
     FirebasePerformance.instance.setPerformanceCollectionEnabled(true);
@@ -107,6 +111,9 @@ class MyApp extends StatelessWidget {
       child: MaterialApp(
         title: 'Assetto',
         debugShowCheckedModeBanner: false,
+        builder: (context, child) {
+          return MobileWebShell(child: child ?? const SizedBox.shrink());
+        },
         theme: ThemeData(
           primarySwatch: Colors.teal,
           scaffoldBackgroundColor: Colors.white,
@@ -115,12 +122,12 @@ class MyApp extends StatelessWidget {
             foregroundColor: Colors.teal,
             elevation: 0,
           ),
-          cardTheme: const CardTheme(
+          cardTheme: const CardThemeData(
             color: Colors.white,
             elevation: 0,
             margin: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           ),
-          tabBarTheme: const TabBarTheme(
+          tabBarTheme: const TabBarThemeData(
             labelColor: Colors.teal,
             unselectedLabelColor: Colors.grey,
             indicatorColor: Colors.teal,
