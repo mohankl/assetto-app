@@ -44,6 +44,12 @@
 </head>
 <body>
   <div class="loading" id="loading">Loading Assetto…</div>
+  <script>
+    window.addEventListener('flutter-first-frame', function () {
+      var loading = document.getElementById('loading');
+      if (loading) loading.remove();
+    });
+  </script>
   <script src="flutter_bootstrap.js" async></script>
 </body>
 </html>

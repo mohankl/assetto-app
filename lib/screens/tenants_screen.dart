@@ -30,7 +30,7 @@ class TenantsScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: 16),
                     ElevatedButton(
-                      onPressed: () => dataProvider.initialize(),
+                      onPressed: () => dataProvider.refresh(),
                       child: const Text('Retry'),
                     ),
                   ],
@@ -41,7 +41,7 @@ class TenantsScreen extends StatelessWidget {
                     child: Text('No tenants found'),
                   )
                 : RefreshIndicator(
-                    onRefresh: () => dataProvider.initialize(),
+                    onRefresh: () => dataProvider.refresh(),
                     child: _buildGroupedTenants(context, dataProvider),
                   );
   }

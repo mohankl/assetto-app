@@ -2,6 +2,9 @@
   command = "bash scripts/netlify-build.sh"
   publish = "build/web"
 
+[build.environment]
+  FLUTTER_VERSION = "stable"
+
 [[redirects]]
   from = "/*"
   to = "/index.html"
@@ -23,3 +26,8 @@
   for = "/main.dart.js"
   [headers.values]
     Cache-Control = "public, max-age=0, must-revalidate"
+
+[[headers]]
+  for = "/canvaskit/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"

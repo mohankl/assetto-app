@@ -5,7 +5,6 @@ import 'package:intl/intl.dart';
 import 'dart:developer' as developer;
 import '../models/tenant.dart';
 import '../models/asset.dart';
-import '../models/transaction.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -14,37 +13,18 @@ class DashboardScreen extends StatefulWidget {
   State<DashboardScreen> createState() => _DashboardScreenState();
 }
 
-class _DashboardScreenState extends State<DashboardScreen>
-    with SingleTickerProviderStateMixin {
-  late TabController _tabController;
-  final List<DateTime> _months = [];
+class _DashboardScreenState extends State<DashboardScreen> {
+  late final DateTime _currentMonth;
 
   @override
   void initState() {
     super.initState();
-    // Initialize data when the screen is first loaded
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<DataProvider>().initialize();
-    });
-
-    // Initialize the past 3 months
     final now = DateTime.now();
-    for (int i = 0; i < 3; i++) {
-      _months.add(DateTime(now.year, now.month - i, 1));
-    }
-
-    // Initialize tab controller
-    _tabController = TabController(length: 3, vsync: this);
-  }
-
-  @override
-  void dispose() {
-    _tabController.dispose();
-    super.dispose();
+    _currentMonth = DateTime(now.year, now.month, 1);
   }
 
   Future<void> _refreshData() async {
-    await context.read<DataProvider>().initialize();
+    await context.read<DataProvider>().refresh();
   }
 
   // Get statistics for a specific month
@@ -93,8 +73,6 @@ class _DashboardScreenState extends State<DashboardScreen>
     // Calculate expected cash flow (sum of all property rent amounts)
     final expectedCashFlow =
         assets.fold(0.0, (sum, asset) => sum + asset.rentAmount);
-
-    final pendingIncome = expectedCashFlow - totalIncome;
 
     // Find unpaid tenants and their pending transactions (excluding cancelled transactions)
     final Map<String, List<dynamic>> unpaidTenantsWithTransactions = {};
@@ -162,7 +140,6 @@ class _DashboardScreenState extends State<DashboardScreen>
 
   // Build dashboard content for a specific month
   Widget _buildMonthlyDashboard(DateTime month) {
-    final dataProvider = context.watch<DataProvider>();
     final stats = _getMonthlyStatistics(month);
 
     final unpaidTenantsWithTransactions =
@@ -480,36 +457,19 @@ class _DashboardScreenState extends State<DashboardScreen>
       appBar: AppBar(
         backgroundColor: Colors.white,
         foregroundColor: Colors.teal,
-        title: const Text('Asset Overview by Month'),
+        title: Text(
+          'Asset Overview — ${DateFormat('MMMM yyyy').format(_currentMonth)}',
+        ),
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: _refreshData,
           ),
         ],
-        bottom: TabBar(
-          controller: _tabController,
-          labelColor: Colors.teal,
-          unselectedLabelColor: Colors.grey,
-          labelStyle: const TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
-          ),
-          unselectedLabelStyle: const TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.normal,
-          ),
-          indicatorColor: Colors.teal,
-          tabs: _months.map((month) {
-            return Tab(
-              text: DateFormat('MMM yyyy').format(month),
-            );
-          }).toList(),
-        ),
       ),
       body: RefreshIndicator(
         onRefresh: _refreshData,
-        child: dataProvider.isLoading
+        child: dataProvider.isLoading && !dataProvider.isInitialized
             ? const Center(child: CircularProgressIndicator())
             : dataProvider.error != null
                 ? Center(
@@ -533,12 +493,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                       ],
                     ),
                   )
-                : TabBarView(
-                    controller: _tabController,
-                    children: _months.map((month) {
-                      return _buildMonthlyDashboard(month);
-                    }).toList(),
-                  ),
+                : _buildMonthlyDashboard(_currentMonth),
       ),
     );
   }
@@ -600,385 +555,5 @@ class _DashboardScreenState extends State<DashboardScreen>
         ],
       ),
     );
-  }
-
-  Color _getStatusColor(String status) {
-    switch (status.toLowerCase()) {
-      case 'completed':
-        return Colors.green;
-      case 'pending':
-        return Colors.orange;
-      case 'cancelled':
-        return Colors.red;
-      default:
-        return Colors.grey;
-    }
-  }
-
-  Widget _buildTenantsList(BuildContext context) {
-    final tenants = context.read<DataProvider>().tenants;
-    return Column(
-      children: [
-        Container(
-          padding: const EdgeInsets.all(16),
-          color: Theme.of(context).primaryColor.withOpacity(0.1),
-          child: Row(
-            children: [
-              Icon(
-                Icons.people,
-                color: Theme.of(context).primaryColor,
-              ),
-              const SizedBox(width: 8),
-              Text(
-                'Tenants',
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: Theme.of(context).primaryColor,
-                ),
-              ),
-            ],
-          ),
-        ),
-        Expanded(
-          child: ListView.builder(
-            itemCount: tenants.length,
-            itemBuilder: (context, index) {
-              final tenant = tenants[index];
-              final asset = context.read<DataProvider>().assets.firstWhere(
-                    (a) => a.id == tenant.assetId,
-                    orElse: () => Asset(
-                      id: '',
-                      name: 'Unknown Asset',
-                      address: 'Unknown Location',
-                      type: 'residential',
-                      status: 'active',
-                      unitNumber: '',
-                      rentAmount: 0.0,
-                      createdAt: DateTime.now().millisecondsSinceEpoch,
-                      updatedAt: DateTime.now().millisecondsSinceEpoch,
-                    ),
-                  );
-
-              return Card(
-                margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                child: ListTile(
-                  title: Text(tenant.name),
-                  subtitle: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(asset.name),
-                      Text(asset.address),
-                      Text('Phone: ${tenant.phone}'),
-                    ],
-                  ),
-                  trailing: Text(
-                    '₹${asset.rentAmount.toStringAsFixed(2)}',
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      color: Colors.green,
-                    ),
-                  ),
-                ),
-              );
-            },
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildAssetsList(BuildContext context) {
-    final assets = context.read<DataProvider>().assets;
-    return Column(
-      children: [
-        Container(
-          padding: const EdgeInsets.all(16),
-          color: Theme.of(context).primaryColor.withOpacity(0.1),
-          child: Row(
-            children: [
-              Icon(
-                Icons.business,
-                color: Theme.of(context).primaryColor,
-              ),
-              const SizedBox(width: 8),
-              Text(
-                'Assets',
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: Theme.of(context).primaryColor,
-                ),
-              ),
-            ],
-          ),
-        ),
-        Expanded(
-          child: ListView.builder(
-            itemCount: assets.length,
-            itemBuilder: (context, index) {
-              final asset = assets[index];
-              return Card(
-                margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                child: ListTile(
-                  title: Text(asset.name),
-                  subtitle: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(asset.address),
-                      Text('Type: ${asset.type.capitalize()}'),
-                      Text('Status: ${asset.status.capitalize()}'),
-                    ],
-                  ),
-                  trailing: Text(
-                    '₹${asset.rentAmount.toStringAsFixed(2)}',
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      color: Colors.green,
-                    ),
-                  ),
-                ),
-              );
-            },
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildTransactionsList(BuildContext context) {
-    final transactions = context.read<DataProvider>().transactions;
-
-    // Group transactions by month and year (excluding cancelled transactions)
-    final Map<String, List<Transaction>> groupedTransactions = {};
-    for (final transaction in transactions) {
-      // Skip cancelled transactions
-      if (transaction.status.toLowerCase() == 'cancelled') continue;
-
-      final date = DateTime.fromMillisecondsSinceEpoch(transaction.date);
-      final monthYear = '${_getMonthName(date.month)} ${date.year}';
-      if (!groupedTransactions.containsKey(monthYear)) {
-        groupedTransactions[monthYear] = [];
-      }
-      groupedTransactions[monthYear]!.add(transaction);
-    }
-
-    // Sort months in descending order
-    final sortedMonths = groupedTransactions.keys.toList()
-      ..sort((a, b) {
-        final dateA = DateTime.parse('1 ${a.split(' ')[0]} ${a.split(' ')[1]}');
-        final dateB = DateTime.parse('1 ${b.split(' ')[0]} ${b.split(' ')[1]}');
-        return dateB.compareTo(dateA);
-      });
-
-    return Column(
-      children: [
-        Container(
-          padding: const EdgeInsets.all(16),
-          color: Theme.of(context).primaryColor.withOpacity(0.1),
-          child: Row(
-            children: [
-              Icon(
-                Icons.receipt,
-                color: Theme.of(context).primaryColor,
-              ),
-              const SizedBox(width: 8),
-              Text(
-                'Transactions',
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: Theme.of(context).primaryColor,
-                ),
-              ),
-            ],
-          ),
-        ),
-        Expanded(
-          child: ListView.builder(
-            itemCount: sortedMonths.length,
-            itemBuilder: (context, monthIndex) {
-              final monthYear = sortedMonths[monthIndex];
-              final monthTransactions = groupedTransactions[monthYear]!;
-
-              return Card(
-                margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                child: Column(
-                  children: [
-                    ListTile(
-                      title: Text(
-                        monthYear,
-                        style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 18,
-                        ),
-                      ),
-                      subtitle: Text(
-                        '${monthTransactions.length} transactions',
-                        style: const TextStyle(color: Colors.grey),
-                      ),
-                    ),
-                    DefaultTabController(
-                      length: 2,
-                      child: Column(
-                        children: [
-                          TabBar(
-                            tabs: const [
-                              Tab(text: 'Completed'),
-                              Tab(text: 'Pending'),
-                            ],
-                            labelColor: Theme.of(context).primaryColor,
-                            unselectedLabelColor: Colors.grey,
-                            indicatorColor: Theme.of(context).primaryColor,
-                          ),
-                          SizedBox(
-                            height: 300,
-                            child: TabBarView(
-                              children: [
-                                _buildMonthTransactionsList(
-                                  context,
-                                  monthTransactions,
-                                  'completed',
-                                ),
-                                _buildMonthTransactionsList(
-                                  context,
-                                  monthTransactions,
-                                  'pending',
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              );
-            },
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildMonthTransactionsList(
-    BuildContext context,
-    List<Transaction> transactions,
-    String status,
-  ) {
-    final filteredTransactions = transactions
-        .where((transaction) => transaction.status.toLowerCase() == status)
-        .toList();
-
-    if (filteredTransactions.isEmpty) {
-      return Center(
-        child: Text(
-          'No ${status.capitalize()} transactions',
-          style: const TextStyle(color: Colors.grey),
-        ),
-      );
-    }
-
-    // Group by asset address
-    final Map<String, List<Transaction>> addressGroups = {};
-    for (final transaction in filteredTransactions) {
-      final asset = context.read<DataProvider>().assets.firstWhere(
-            (a) => a.id == transaction.assetId,
-            orElse: () => Asset.empty(),
-          );
-      final address = asset.address;
-      if (!addressGroups.containsKey(address)) {
-        addressGroups[address] = [];
-      }
-      addressGroups[address]!.add(transaction);
-    }
-
-    // Sort addresses alphabetically
-    final sortedAddresses = addressGroups.keys.toList()..sort();
-
-    return ListView.builder(
-      itemCount: sortedAddresses.length,
-      itemBuilder: (context, index) {
-        final address = sortedAddresses[index];
-        final addressTransactions = addressGroups[address]!;
-
-        // Group transactions by month and year
-        final Map<String, List<Transaction>> monthYearGroups = {};
-        for (final transaction in addressTransactions) {
-          final date = DateTime.fromMillisecondsSinceEpoch(transaction.date);
-          final monthYear = '${_getMonthName(date.month)} ${date.year}';
-          if (!monthYearGroups.containsKey(monthYear)) {
-            monthYearGroups[monthYear] = [];
-          }
-          monthYearGroups[monthYear]!.add(transaction);
-        }
-
-        // Sort months in descending order
-        final sortedMonths = monthYearGroups.keys.toList()
-          ..sort((a, b) {
-            final dateA =
-                DateTime.parse('1 ${a.split(' ')[0]} ${a.split(' ')[1]}');
-            final dateB =
-                DateTime.parse('1 ${b.split(' ')[0]} ${b.split(' ')[1]}');
-            return dateB.compareTo(dateA);
-          });
-
-        return ExpansionTile(
-          title: Text(address),
-          children: sortedMonths.map((monthYear) {
-            final monthTransactions = monthYearGroups[monthYear]!;
-
-            // Sort transactions by date (newest first)
-            monthTransactions.sort((a, b) => b.date.compareTo(a.date));
-
-            return ExpansionTile(
-              title: Text(monthYear),
-              children: monthTransactions.map((transaction) {
-                final asset = context.read<DataProvider>().assets.firstWhere(
-                      (a) => a.id == transaction.assetId,
-                      orElse: () => Asset.empty(),
-                    );
-                final tenant = transaction.tenantId != null
-                    ? context.read<DataProvider>().tenants.firstWhere(
-                          (t) => t.id == transaction.tenantId,
-                          orElse: () => Tenant.empty(),
-                        )
-                    : null;
-
-                return ListTile(
-                  title: Text(
-                      '${transaction.type.capitalize()} - ${tenant?.name ?? 'No Tenant'}'),
-                  subtitle: Column(
-                    children: [
-                      Text(DateFormat('dd MMM').format(
-                          DateTime.fromMillisecondsSinceEpoch(
-                              transaction.date))),
-                      Text(transaction.description),
-                    ],
-                  ),
-                  trailing: Text(
-                    '₹${transaction.amount.toStringAsFixed(2)}',
-                    style: TextStyle(
-                      color:
-                          transaction.amount >= 0 ? Colors.green : Colors.red,
-                    ),
-                  ),
-                );
-              }).toList(),
-            );
-          }).toList(),
-        );
-      },
-    );
-  }
-
-  String _getMonthName(int month) {
-    return DateFormat('MMMM').format(DateTime(2024, month));
-  }
-}
-
-extension StringExtension on String {
-  String capitalize() {
-    return "${this[0].toUpperCase()}${substring(1)}";
   }
 }

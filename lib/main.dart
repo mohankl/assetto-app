@@ -38,35 +38,26 @@ Future<void> initializeFirebase() async {
       firebase_db.FirebaseDatabase.instance
           .setPersistenceCacheSizeBytes(10000000);
       developer.log('Firebase settings configured successfully', name: 'AppInit');
+      await prefetchCriticalData();
     }
 
-    // Enable performance monitoring and analytics
-    FirebasePerformance.instance.setPerformanceCollectionEnabled(true);
-    FirebaseAnalytics.instance.setAnalyticsCollectionEnabled(true);
-    developer.log('Performance monitoring and analytics enabled',
-        name: 'AppInit');
-
-    // Test database connection with timeout
-    final ref = firebase_db.FirebaseDatabase.instance.ref();
-    try {
-      await ref.child('test').get().timeout(
-        const Duration(seconds: 5),
-        onTimeout: () {
-          throw TimeoutException('Database connection timed out');
-        },
-      );
-      developer.log('Database connection successful', name: 'AppInit');
-    } catch (e) {
-      developer.log('Database connection test failed: $e', name: 'AppInit');
-      // Don't rethrow here as this is just a test
-    }
-
-    // Enable offline persistence and prefetch critical data
-    await prefetchCriticalData();
+    // Enable telemetry without blocking startup
+    unawaited(_enableTelemetry());
   } catch (e, stackTrace) {
     developer.log('Firebase initialization failed: $e\n$stackTrace',
         name: 'AppInit');
     rethrow;
+  }
+}
+
+Future<void> _enableTelemetry() async {
+  try {
+    await FirebasePerformance.instance.setPerformanceCollectionEnabled(true);
+    await FirebaseAnalytics.instance.setAnalyticsCollectionEnabled(true);
+    developer.log('Performance monitoring and analytics enabled',
+        name: 'AppInit');
+  } catch (e) {
+    developer.log('Telemetry setup skipped: $e', name: 'AppInit');
   }
 }
 
@@ -171,8 +162,15 @@ class MyApp extends StatelessWidget {
   }
 }
 
-class AuthWrapper extends StatelessWidget {
+class AuthWrapper extends StatefulWidget {
   const AuthWrapper({Key? key}) : super(key: key);
+
+  @override
+  State<AuthWrapper> createState() => _AuthWrapperState();
+}
+
+class _AuthWrapperState extends State<AuthWrapper> {
+  bool _dataInitStarted = false;
 
   @override
   Widget build(BuildContext context) {
@@ -187,10 +185,12 @@ class AuthWrapper extends StatelessWidget {
         }
 
         if (authProvider.isAuthenticated) {
-          // Initialize data provider when authenticated
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            context.read<DataProvider>().initialize();
-          });
+          if (!_dataInitStarted) {
+            _dataInitStarted = true;
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              context.read<DataProvider>().initialize();
+            });
+          }
           return const MainScreen();
         }
 
@@ -288,11 +288,7 @@ class _MainScreenState extends State<MainScreen> {
       case 2: // Tenants
         _showAddTenantDialog(context);
         break;
-      case 3: // Transactions
-        _showAddTransactionDialog(context);
-        break;
       default:
-        // Do nothing for dashboard
         break;
     }
   }
@@ -640,234 +636,6 @@ class _MainScreenState extends State<MainScreen> {
     );
   }
 
-  Future<void> _showAddTransactionDialog(BuildContext context) async {
-    final formKey = GlobalKey<FormState>();
-    final amountController = TextEditingController();
-    final descriptionController = TextEditingController();
-    String selectedType = 'advance';
-    String selectedStatus = 'Pending';
-    String? selectedAssetId;
-    String? selectedTenantId;
-    DateTime? transactionDate;
-
-    await showDialog(
-      context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setState) => AlertDialog(
-          title: const Text('Add Transaction'),
-          content: Form(
-            key: formKey,
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  TextFormField(
-                    controller: amountController,
-                    decoration: const InputDecoration(
-                      labelText: 'Amount',
-                      prefixText: '₹',
-                    ),
-                    keyboardType: TextInputType.number,
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Amount is required';
-                      }
-                      if (double.tryParse(value) == null) {
-                        return 'Please enter a valid number';
-                      }
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: 16),
-                  TextFormField(
-                    controller: descriptionController,
-                    decoration: const InputDecoration(labelText: 'Description'),
-                    validator: (value) => value?.isEmpty ?? true
-                        ? 'Description is required'
-                        : null,
-                  ),
-                  const SizedBox(height: 16),
-                  SizedBox(
-                    width: double.infinity,
-                    child: DropdownButtonFormField<String>(
-                      value: selectedType,
-                      isExpanded: true,
-                      decoration: const InputDecoration(
-                        labelText: 'Type',
-                        border: OutlineInputBorder(),
-                      ),
-                      items: ['advance', 'expense', 'rent'].map((String value) {
-                        return DropdownMenuItem<String>(
-                          value: value,
-                          child: Text(
-                            value,
-                            overflow: TextOverflow.ellipsis,
-                            maxLines: 1,
-                          ),
-                        );
-                      }).toList(),
-                      onChanged: (String? newValue) {
-                        setState(() {
-                          selectedType = newValue!;
-                        });
-                      },
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return 'Please select a type';
-                        }
-                        return null;
-                      },
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  SizedBox(
-                    width: double.infinity,
-                    child: DropdownButtonFormField<String>(
-                      value: selectedStatus,
-                      isExpanded: true,
-                      decoration: const InputDecoration(
-                        labelText: 'Status',
-                        border: OutlineInputBorder(),
-                      ),
-                      items: ['Pending', 'Completed', 'Failed']
-                          .map((status) => DropdownMenuItem(
-                                value: status,
-                                child: Text(
-                                  status,
-                                  overflow: TextOverflow.ellipsis,
-                                  maxLines: 1,
-                                ),
-                              ))
-                          .toList(),
-                      onChanged: (value) {
-                        if (value != null) {
-                          selectedStatus = value;
-                        }
-                      },
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  SizedBox(
-                    width: double.infinity,
-                    child: DropdownButtonFormField<String>(
-                      value: selectedAssetId,
-                      isExpanded: true,
-                      decoration: const InputDecoration(
-                        labelText: 'Asset',
-                        border: OutlineInputBorder(),
-                      ),
-                      items: context
-                          .read<DataProvider>()
-                          .assets
-                          .map((asset) => DropdownMenuItem(
-                                value: asset.id,
-                                child: Text(
-                                  '${asset.name} (${asset.unitNumber})',
-                                  overflow: TextOverflow.ellipsis,
-                                  maxLines: 1,
-                                ),
-                              ))
-                          .toList(),
-                      onChanged: (value) {
-                        if (value != null) {
-                          selectedAssetId = value;
-                        }
-                      },
-                      validator: (value) =>
-                          value == null ? 'Please select an asset' : null,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  SizedBox(
-                    width: double.infinity,
-                    child: DropdownButtonFormField<String>(
-                      value: selectedTenantId,
-                      isExpanded: true,
-                      decoration: const InputDecoration(
-                        labelText: 'Tenant',
-                        border: OutlineInputBorder(),
-                      ),
-                      items: context
-                          .read<DataProvider>()
-                          .tenants
-                          .map((tenant) => DropdownMenuItem<String>(
-                                value: tenant.id,
-                                child: Text(
-                                  tenant.name,
-                                  overflow: TextOverflow.ellipsis,
-                                  maxLines: 1,
-                                ),
-                              ))
-                          .toList(),
-                      onChanged: (value) {
-                        if (value != null) {
-                          selectedTenantId = value;
-                        }
-                      },
-                      validator: (value) =>
-                          value == null ? 'Please select a tenant' : null,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  ListTile(
-                    title: Text(transactionDate == null
-                        ? 'Select Date'
-                        : 'Date: ${transactionDate.toString().split(' ')[0]}'),
-                    trailing: const Icon(Icons.calendar_today),
-                    onTap: () async {
-                      final date = await showDatePicker(
-                        context: context,
-                        initialDate: DateTime.now(),
-                        firstDate:
-                            DateTime.now().subtract(const Duration(days: 365)),
-                        lastDate: DateTime.now().add(const Duration(days: 365)),
-                      );
-                      if (date != null) {
-                        setState(() => transactionDate = date);
-                      }
-                    },
-                  ),
-                ],
-              ),
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel'),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                if (formKey.currentState?.validate() ?? false) {
-                  if (transactionDate == null) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Please select a date'),
-                      ),
-                    );
-                    return;
-                  }
-                  final transactionData = {
-                    'amount': double.parse(amountController.text),
-                    'description': descriptionController.text,
-                    'type': selectedType,
-                    'status': selectedStatus,
-                    'asset_id': selectedAssetId,
-                    'tenant_id': selectedTenantId,
-                    'date': transactionDate!.millisecondsSinceEpoch,
-                  };
-                  context.read<DataProvider>().addTransaction(transactionData);
-                  Navigator.pop(context);
-                }
-              },
-              child: const Text('Add'),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
   Future<void> _generateMonthlyInvoices(BuildContext context) async {
     final dataProvider = context.read<DataProvider>();
     final now = DateTime.now();
@@ -1080,7 +848,7 @@ class _MainScreenState extends State<MainScreen> {
           ),
         ],
       ),
-      floatingActionButton: _selectedIndex == 0
+      floatingActionButton: _selectedIndex == 0 || _selectedIndex == 3
           ? null
           : FloatingActionButton(
               onPressed: () => _handleFloatingActionButton(context),

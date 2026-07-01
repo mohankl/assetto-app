@@ -42,6 +42,13 @@ class _TransactionsScreenState extends State<TransactionsScreen>
     return Scaffold(
       appBar: AppBar(
         title: const Text('Transactions'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.add),
+            tooltip: 'Add Transaction',
+            onPressed: () => _showAddTransactionDialog(context),
+          ),
+        ],
         bottom: TabBar(
           controller: _tabController,
           tabs: const [
@@ -69,10 +76,6 @@ class _TransactionsScreenState extends State<TransactionsScreen>
           unselectedLabelColor: Colors.grey,
         ),
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => _showAddTransactionDialog(context),
-        child: const Icon(Icons.add),
-      ),
       body: dataProvider.isLoading
           ? const Center(child: CircularProgressIndicator())
           : dataProvider.error != null
@@ -89,7 +92,7 @@ class _TransactionsScreenState extends State<TransactionsScreen>
                       ),
                       const SizedBox(height: 16),
                       ElevatedButton(
-                        onPressed: () => dataProvider.initialize(),
+                        onPressed: () => dataProvider.refresh(),
                         child: const Text('Retry'),
                       ),
                     ],
@@ -141,7 +144,7 @@ class _TransactionsScreenState extends State<TransactionsScreen>
     }
 
     return RefreshIndicator(
-      onRefresh: () => dataProvider.initialize(),
+      onRefresh: () => dataProvider.refresh(),
       child: ListView.builder(
         itemCount: sortedProperties.length,
         itemBuilder: (context, index) {

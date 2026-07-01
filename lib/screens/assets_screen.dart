@@ -26,7 +26,7 @@ class AssetsScreen extends StatelessWidget {
                         ),
                         const SizedBox(height: 16),
                         ElevatedButton(
-                          onPressed: () => dataProvider.initialize(),
+                          onPressed: () => dataProvider.refresh(),
                           child: const Text('Retry'),
                         ),
                       ],

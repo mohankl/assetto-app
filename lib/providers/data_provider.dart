@@ -28,23 +28,31 @@ class DataProvider with ChangeNotifier {
   // Initialize data
   Future<void> initialize() async {
     if (_isInitialized) return;
+    await _loadData();
+    _isInitialized = true;
+  }
 
+  Future<void> refresh() async {
+    await _loadData();
+    _isInitialized = true;
+  }
+
+  Future<void> _loadData() async {
     try {
       _isLoading = true;
       _error = null;
       notifyListeners();
 
+      await loadAssets();
       await Future.wait([
-        loadAssets(),
         loadTenants(),
         loadTransactions(),
       ]);
 
-      _isInitialized = true;
       _error = null;
     } catch (e) {
       _error = e.toString();
-      developer.log('Error initializing data: $_error');
+      developer.log('Error loading data: $_error');
     } finally {
       _isLoading = false;
       notifyListeners();
