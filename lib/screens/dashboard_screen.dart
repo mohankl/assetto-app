@@ -7,6 +7,7 @@ import '../models/tenant.dart';
 import '../models/asset.dart';
 import '../models/transaction.dart';
 import '../utils/currency_format.dart';
+import '../utils/billing_month.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -16,15 +17,6 @@ class DashboardScreen extends StatefulWidget {
 }
 
 class _DashboardScreenState extends State<DashboardScreen> {
-  late final DateTime _currentMonth;
-
-  @override
-  void initState() {
-    super.initState();
-    final now = DateTime.now();
-    _currentMonth = DateTime(now.year, now.month, 1);
-  }
-
   Future<void> _refreshData() async {
     await context.read<DataProvider>().refresh();
   }
@@ -190,6 +182,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
     developer.log(
         'Dashboard Statistics for ${DateFormat('MMMM yyyy').format(month)}:');
+    developer.log('Active billing month: ${DateFormat('MMMM yyyy').format(month)}');
     developer.log('Expected Income: $expectedIncome');
     developer.log('Pending Income: $pendingIncome');
     developer.log('Received Income: $receivedIncome');
@@ -486,6 +479,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
   @override
   Widget build(BuildContext context) {
     final dataProvider = context.watch<DataProvider>();
+    final activeBillingMonth =
+        resolveActiveBillingMonth(dataProvider.transactions);
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -493,7 +488,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         backgroundColor: Colors.white,
         foregroundColor: Colors.teal,
         title: Text(
-          'Asset Overview — ${DateFormat('MMMM yyyy').format(_currentMonth)}',
+          'Asset Overview — ${DateFormat('MMMM yyyy').format(activeBillingMonth)}',
         ),
         actions: [
           IconButton(
@@ -528,7 +523,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       ],
                     ),
                   )
-                : _buildMonthlyDashboard(_currentMonth),
+                : _buildMonthlyDashboard(activeBillingMonth),
       ),
     );
   }
