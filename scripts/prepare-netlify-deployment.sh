@@ -30,6 +30,9 @@ cat > "$DEPLOY_DIR/_headers" <<'EOF'
 
 /main.dart.js
   Cache-Control: public, max-age=0, must-revalidate
+
+/canvaskit/*
+  Cache-Control: public, max-age=31536000, immutable
 EOF
 
 echo ""

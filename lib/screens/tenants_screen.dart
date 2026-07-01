@@ -14,36 +14,48 @@ class TenantsScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final dataProvider = context.watch<DataProvider>();
 
-    return dataProvider.isLoading
-        ? const Center(child: CircularProgressIndicator())
-        : dataProvider.error != null
-            ? Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Icon(Icons.error_outline,
-                        color: Colors.red, size: 48),
-                    const SizedBox(height: 16),
-                    Text(
-                      'Error: ${dataProvider.error}',
-                      textAlign: TextAlign.center,
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Tenants'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.add),
+            tooltip: 'Add Tenant',
+            onPressed: () => _showAddTenantDialog(context),
+          ),
+        ],
+      ),
+      body: dataProvider.isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : dataProvider.error != null
+              ? Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(Icons.error_outline,
+                          color: Colors.red, size: 48),
+                      const SizedBox(height: 16),
+                      Text(
+                        'Error: ${dataProvider.error}',
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 16),
+                      ElevatedButton(
+                        onPressed: () => dataProvider.refresh(),
+                        child: const Text('Retry'),
+                      ),
+                    ],
+                  ),
+                )
+              : dataProvider.tenants.isEmpty
+                  ? const Center(
+                      child: Text('No tenants found'),
+                    )
+                  : RefreshIndicator(
+                      onRefresh: () => dataProvider.refresh(),
+                      child: _buildGroupedTenants(context, dataProvider),
                     ),
-                    const SizedBox(height: 16),
-                    ElevatedButton(
-                      onPressed: () => dataProvider.refresh(),
-                      child: const Text('Retry'),
-                    ),
-                  ],
-                ),
-              )
-            : dataProvider.tenants.isEmpty
-                ? const Center(
-                    child: Text('No tenants found'),
-                  )
-                : RefreshIndicator(
-                    onRefresh: () => dataProvider.refresh(),
-                    child: _buildGroupedTenants(context, dataProvider),
-                  );
+    );
   }
 
   Widget _buildGroupedTenants(BuildContext context, DataProvider dataProvider) {

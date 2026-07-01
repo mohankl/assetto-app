@@ -8,39 +8,51 @@ class AssetsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Consumer<DataProvider>(
-      builder: (context, dataProvider, child) {
-        return dataProvider.isLoading
-            ? const Center(child: CircularProgressIndicator())
-            : dataProvider.error != null
-                ? Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Icon(Icons.error_outline,
-                            color: Colors.red, size: 48),
-                        const SizedBox(height: 16),
-                        Text(
-                          'Error: ${dataProvider.error}',
-                          textAlign: TextAlign.center,
-                        ),
-                        const SizedBox(height: 16),
-                        ElevatedButton(
-                          onPressed: () => dataProvider.refresh(),
-                          child: const Text('Retry'),
-                        ),
-                      ],
-                    ),
-                  )
-                : dataProvider.assets.isEmpty
-                    ? const Center(
-                        child: Text('No assets found'),
-                      )
-                    : RefreshIndicator(
-                        onRefresh: () => dataProvider.loadAssets(),
-                        child: _buildGroupedAssets(context, dataProvider),
-                      );
-      },
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Assets'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.add),
+            tooltip: 'Add Asset',
+            onPressed: () => _showAddAssetDialog(context),
+          ),
+        ],
+      ),
+      body: Consumer<DataProvider>(
+        builder: (context, dataProvider, child) {
+          return dataProvider.isLoading
+              ? const Center(child: CircularProgressIndicator())
+              : dataProvider.error != null
+                  ? Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(Icons.error_outline,
+                              color: Colors.red, size: 48),
+                          const SizedBox(height: 16),
+                          Text(
+                            'Error: ${dataProvider.error}',
+                            textAlign: TextAlign.center,
+                          ),
+                          const SizedBox(height: 16),
+                          ElevatedButton(
+                            onPressed: () => dataProvider.refresh(),
+                            child: const Text('Retry'),
+                          ),
+                        ],
+                      ),
+                    )
+                  : dataProvider.assets.isEmpty
+                      ? const Center(
+                          child: Text('No assets found'),
+                        )
+                      : RefreshIndicator(
+                          onRefresh: () => dataProvider.loadAssets(),
+                          child: _buildGroupedAssets(context, dataProvider),
+                        );
+        },
+      ),
     );
   }
 

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'dart:developer' as developer;
 import '../providers/auth_provider.dart';
+import '../widgets/assetto_brand.dart';
 
 class LoginScreen extends StatelessWidget {
   const LoginScreen({Key? key}) : super(key: key);
@@ -16,38 +17,15 @@ class LoginScreen extends StatelessWidget {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                // App Logo
-                Container(
-                  width: 120,
-                  height: 120,
-                  decoration: BoxDecoration(
-                    color: Theme.of(context).primaryColor,
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Center(
-                    child: Text(
-                      'A',
-                      style: TextStyle(
-                        fontSize: 48,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 32),
-
-                // App Name
-                const Text(
-                  'Assetto',
-                  style: TextStyle(
+                const AssettoBrandTitle(
+                  iconSize: 72,
+                  alignment: MainAxisAlignment.center,
+                  textStyle: TextStyle(
                     fontSize: 32,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
                 const SizedBox(height: 8),
-
-                // Tagline
                 const Text(
                   'Manage your properties with ease',
                   style: TextStyle(
