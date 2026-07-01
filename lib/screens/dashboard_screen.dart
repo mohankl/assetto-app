@@ -5,6 +5,8 @@ import 'package:intl/intl.dart';
 import 'dart:developer' as developer;
 import '../models/tenant.dart';
 import '../models/asset.dart';
+import '../models/transaction.dart';
+import '../utils/currency_format.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -60,67 +62,91 @@ class _DashboardScreenState extends State<DashboardScreen> {
           t.status.toLowerCase() != 'cancelled';
     }).toList();
 
-    final totalIncome = monthlyTransactions
+    final monthlyRentTransactions = monthlyTransactions
         .where((t) => t.type.toLowerCase() == 'rent')
+        .toList();
+
+    final receivedIncome = monthlyRentTransactions
+        .where((t) => t.status.toLowerCase() == 'completed')
         .fold(0.0, (sum, t) => sum + t.amount);
+
+    final pendingIncome = monthlyRentTransactions
+        .where((t) => t.status.toLowerCase() == 'pending')
+        .fold(0.0, (sum, t) => sum + t.amount);
+
+    // Expected rent for the month equals outstanding plus collected amounts.
+    final expectedIncome = pendingIncome + receivedIncome;
 
     final totalExpenses = monthlyTransactions
         .where((t) => t.type.toLowerCase() == 'expense')
         .fold(0.0, (sum, t) => sum + t.amount);
 
-    final netIncome = totalIncome - totalExpenses;
-
-    // Calculate expected cash flow (sum of all property rent amounts)
-    final expectedCashFlow =
-        assets.fold(0.0, (sum, asset) => sum + asset.rentAmount);
-
-    // Find unpaid tenants and their pending transactions (excluding cancelled transactions)
+    // All outstanding pending rent dues across every month.
     final Map<String, List<dynamic>> unpaidTenantsWithTransactions = {};
     final Map<String, double> accumulatedPendingAmounts = {};
+    final Map<String, List<Transaction>> pendingByTenantId = {};
 
-    for (final tenant in tenants) {
-      if (tenant.assetId.isEmpty) continue;
+    for (final transaction in transactions) {
+      if (transaction.type.toLowerCase() != 'rent') continue;
+      if (transaction.status.toLowerCase() != 'pending') continue;
 
-      final pendingTransactions = transactions.where((t) {
-        final transactionDate = DateTime.fromMillisecondsSinceEpoch(t.date);
-        return t.tenantId == tenant.id &&
-            t.type.toLowerCase() == 'rent' &&
-            transactionDate
-                .isBefore(DateTime(month.year, month.month + 1, 1)) &&
-            t.status.toLowerCase() == 'pending' &&
-            t.status.toLowerCase() != 'cancelled';
-      }).toList();
-
-      if (pendingTransactions.isNotEmpty) {
-        final asset = assets.firstWhere(
-          (asset) => asset.id == tenant.assetId,
-          orElse: () => Asset(
-            id: '',
-            name: 'Unknown Property',
-            address: 'No address provided',
-            type: 'Unknown',
-            status: 'Unknown',
-            unitNumber: '',
-            rentAmount: 0.0,
-            createdAt: DateTime.now().millisecondsSinceEpoch,
-            updatedAt: DateTime.now().millisecondsSinceEpoch,
-          ),
-        );
-
-        final accumulatedAmount =
-            pendingTransactions.fold(0.0, (sum, t) => sum + t.amount);
-        accumulatedPendingAmounts[tenant.id] = accumulatedAmount;
-
-        if (!unpaidTenantsWithTransactions.containsKey(asset.address)) {
-          unpaidTenantsWithTransactions[asset.address] = [];
+      String tenantId = transaction.tenantId ?? '';
+      if (tenantId.isEmpty) {
+        final assetTenants =
+            tenants.where((tenant) => tenant.assetId == transaction.assetId);
+        if (assetTenants.length == 1) {
+          tenantId = assetTenants.first.id;
         }
-        unpaidTenantsWithTransactions[asset.address]!.add({
-          'tenant': tenant,
-          'asset': asset,
-          'transactions': pendingTransactions,
-          'accumulatedAmount': accumulatedAmount,
-        });
       }
+      if (tenantId.isEmpty) continue;
+
+      pendingByTenantId.putIfAbsent(tenantId, () => []).add(transaction);
+    }
+
+    for (final entry in pendingByTenantId.entries) {
+      final tenant = tenants.firstWhere(
+        (tenant) => tenant.id == entry.key,
+        orElse: () => Tenant.empty(),
+      );
+      if (tenant.id.isEmpty) continue;
+
+      final pendingTransactions = List<Transaction>.from(entry.value)
+        ..sort((a, b) => a.date.compareTo(b.date));
+
+      final asset = assets.firstWhere(
+        (asset) => asset.id == tenant.assetId,
+        orElse: () => Asset(
+          id: '',
+          name: 'Unknown Property',
+          address: 'No address provided',
+          type: 'Unknown',
+          status: 'Unknown',
+          unitNumber: '',
+          rentAmount: 0.0,
+          createdAt: DateTime.now().millisecondsSinceEpoch,
+          updatedAt: DateTime.now().millisecondsSinceEpoch,
+        ),
+      );
+
+      final accumulatedAmount =
+          pendingTransactions.fold(0.0, (sum, t) => sum + t.amount);
+      accumulatedPendingAmounts[tenant.id] = accumulatedAmount;
+
+      unpaidTenantsWithTransactions.putIfAbsent(asset.address, () => []);
+      unpaidTenantsWithTransactions[asset.address]!.add({
+        'tenant': tenant,
+        'asset': asset,
+        'transactions': pendingTransactions,
+        'accumulatedAmount': accumulatedAmount,
+      });
+    }
+
+    for (final tenantsList in unpaidTenantsWithTransactions.values) {
+      tenantsList.sort((a, b) {
+        final nameA = (a['tenant'] as Tenant).name;
+        final nameB = (b['tenant'] as Tenant).name;
+        return nameA.compareTo(nameB);
+      });
     }
 
     return {
@@ -130,11 +156,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
       'upcomingLeaseEnds': upcomingLeaseEnds,
       'unpaidTenantsWithTransactions': unpaidTenantsWithTransactions,
       'accumulatedPendingAmounts': accumulatedPendingAmounts,
-      'totalIncome': totalIncome,
+      'receivedIncome': receivedIncome,
+      'pendingIncome': pendingIncome,
+      'expectedIncome': expectedIncome,
       'totalExpenses': totalExpenses,
-      'netIncome': netIncome,
       'monthlyTransactions': monthlyTransactions,
-      'expectedCashFlow': expectedCashFlow,
     };
   }
 
@@ -144,15 +170,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
     final unpaidTenantsWithTransactions =
         stats['unpaidTenantsWithTransactions'] as Map<String, List<dynamic>>;
-    final totalIncome = stats['totalIncome'] as double;
+    final receivedIncome = stats['receivedIncome'] as double;
+    final pendingIncome = stats['pendingIncome'] as double;
+    final expectedIncome = stats['expectedIncome'] as double;
     final totalExpenses = stats['totalExpenses'] as double;
-    final netIncome = stats['netIncome'] as double;
     final occupiedUnits = stats['occupiedUnits'] as int;
     final totalUnits = stats['totalUnits'] as int;
     final occupancyRate = stats['occupancyRate'] as String;
     final upcomingLeaseEnds = stats['upcomingLeaseEnds'] as int;
-    final expectedCashFlow = stats['expectedCashFlow'] as double;
-    final pendingIncome = expectedCashFlow - totalIncome;
 
     // Calculate total accumulated unpaid amount
     final totalUnpaidAmount =
@@ -165,18 +190,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
     developer.log(
         'Dashboard Statistics for ${DateFormat('MMMM yyyy').format(month)}:');
-    developer.log('Expected Income: $expectedCashFlow');
-    developer.log('Total Income: $totalIncome');
+    developer.log('Expected Income: $expectedIncome');
     developer.log('Pending Income: $pendingIncome');
+    developer.log('Received Income: $receivedIncome');
     developer.log('Total Expenses: $totalExpenses');
-    developer.log('Net Income: $netIncome');
     developer.log('Total Transactions: ${stats['monthlyTransactions'].length}');
 
-    final currencyFormat = NumberFormat.currency(
-      symbol: '₹',
-      locale: 'en_IN',
-      decimalDigits: 0,
-    );
+    final currencyFormat = appCurrencyFormat(decimalDigits: 0);
 
     return SingleChildScrollView(
       physics: const AlwaysScrollableScrollPhysics(),
@@ -189,15 +209,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
             [
               _buildStatRow(
                 'Expected Income',
-                currencyFormat.format(expectedCashFlow),
+                currencyFormat.format(expectedIncome),
                 Icons.account_balance_wallet,
                 color: Colors.teal,
-              ),
-              _buildStatRow(
-                'Total Income',
-                currencyFormat.format(totalIncome),
-                Icons.arrow_upward,
-                color: Colors.green,
               ),
               _buildStatRow(
                 'Pending Income',
@@ -212,10 +226,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 color: Colors.red,
               ),
               _buildStatRow(
-                'Net Income',
-                currencyFormat.format(netIncome),
+                'Received Income',
+                currencyFormat.format(receivedIncome),
                 Icons.account_balance,
-                color: netIncome >= 0 ? Colors.green : Colors.red,
+                color: Colors.green,
               ),
             ],
           ),
@@ -310,9 +324,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         child: Column(
                           children: tenantsList.map((tenantData) {
                             final tenant = tenantData['tenant'] as Tenant;
-                            final asset = tenantData['asset'] as Asset;
-                            final transactions =
-                                tenantData['transactions'] as List;
+                            final pendingTransactions =
+                                tenantData['transactions'] as List<Transaction>;
                             final accumulatedAmount =
                                 tenantData['accumulatedAmount'] as double;
 
@@ -353,14 +366,19 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                           ],
                                         ),
                                         Text(
-                                          'Unit ${asset.unitNumber}',
+                                          tenant.phone.isNotEmpty
+                                              ? tenant.phone
+                                              : 'No phone number',
                                           style: TextStyle(
                                             fontSize: 12,
                                             color: Colors.grey[600],
                                           ),
                                         ),
                                         const SizedBox(height: 8),
-                                        ...transactions.map((transaction) {
+                                        ...pendingTransactions.map((transaction) {
+                                          final dueDate =
+                                              DateTime.fromMillisecondsSinceEpoch(
+                                                  transaction.date);
                                           return Container(
                                             margin: const EdgeInsets.only(
                                                 left: 16.0, bottom: 4.0),
@@ -372,19 +390,36 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                                   BorderRadius.circular(4),
                                             ),
                                             child: Row(
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.start,
                                               children: [
-                                                Text(
-                                                  DateFormat('MMM yyyy').format(
-                                                    DateTime
-                                                        .fromMillisecondsSinceEpoch(
-                                                            transaction.date),
-                                                  ),
-                                                  style: const TextStyle(
-                                                    fontSize: 12,
-                                                    fontWeight: FontWeight.w500,
+                                                Expanded(
+                                                  child: Column(
+                                                    crossAxisAlignment:
+                                                        CrossAxisAlignment
+                                                            .start,
+                                                    children: [
+                                                      Text(
+                                                        _pendingRentLabel(
+                                                            transaction),
+                                                        style:
+                                                            const TextStyle(
+                                                          fontSize: 12,
+                                                          fontWeight:
+                                                              FontWeight.w600,
+                                                        ),
+                                                      ),
+                                                      Text(
+                                                        'Recorded: ${DateFormat('MMM d, yyyy').format(dueDate)}',
+                                                        style: TextStyle(
+                                                          fontSize: 11,
+                                                          color: Colors
+                                                              .grey[600],
+                                                        ),
+                                                      ),
+                                                    ],
                                                   ),
                                                 ),
-                                                const SizedBox(width: 8),
                                                 Text(
                                                   currencyFormat.format(
                                                       transaction.amount),
@@ -397,7 +432,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                               ],
                                             ),
                                           );
-                                        }).toList(),
+                                        }),
                                       ],
                                     ),
                                   ),
@@ -555,5 +590,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
         ],
       ),
     );
+  }
+
+  String _pendingRentLabel(Transaction transaction) {
+    if (transaction.description.trim().isNotEmpty) {
+      return transaction.description.trim();
+    }
+
+    final dueDate = DateTime.fromMillisecondsSinceEpoch(transaction.date);
+    return '${DateFormat('MMMM yyyy').format(dueDate)} rent due';
   }
 }

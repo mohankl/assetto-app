@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/data_provider.dart' hide Asset;
 import '../models/asset.dart';
+import '../utils/currency_format.dart';
 
 class AssetsScreen extends StatelessWidget {
   const AssetsScreen({super.key});
@@ -170,7 +171,7 @@ class AssetsScreen extends StatelessWidget {
                     controller: rentAmountController,
                     decoration: const InputDecoration(
                       labelText: 'Rent Amount',
-                      prefixText: '₹',
+                      prefixText: appCurrencySymbol,
                     ),
                     keyboardType: TextInputType.number,
                     validator: (value) {
@@ -318,7 +319,7 @@ class AssetCard extends StatelessWidget {
                 const SizedBox(width: 16),
                 const Icon(Icons.payments, size: 16),
                 const SizedBox(width: 8),
-                Text('₹${asset.rentAmount.toStringAsFixed(0)}'),
+                Text(formatCurrency(asset.rentAmount)),
               ],
             ),
           ],
@@ -411,7 +412,7 @@ class AssetCard extends StatelessWidget {
                     controller: rentAmountController,
                     decoration: const InputDecoration(
                       labelText: 'Rent Amount',
-                      prefixText: '₹',
+                      prefixText: appCurrencySymbol,
                     ),
                     keyboardType: TextInputType.number,
                     validator: (value) {

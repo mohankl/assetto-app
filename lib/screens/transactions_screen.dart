@@ -5,6 +5,7 @@ import '../providers/data_provider.dart';
 import '../models/transaction.dart';
 import '../models/tenant.dart';
 import '../models/asset.dart';
+import '../utils/currency_format.dart';
 
 extension StringExtension on String {
   String capitalize() {
@@ -191,7 +192,7 @@ class _TransactionsScreenState extends State<TransactionsScreen>
         : null;
 
     final dateFormat = DateFormat('MMM d, y');
-    final currencyFormat = NumberFormat.currency(symbol: '\$');
+    final currencyFormat = appCurrencyFormat(decimalDigits: 0);
 
     return Container(
       decoration: BoxDecoration(
@@ -360,7 +361,7 @@ class _TransactionsScreenState extends State<TransactionsScreen>
                     controller: amountController,
                     decoration: const InputDecoration(
                       labelText: 'Amount',
-                      prefixText: '\$',
+                      prefixText: appCurrencySymbol,
                     ),
                     keyboardType: TextInputType.number,
                     validator: (value) {
@@ -612,7 +613,7 @@ class _TransactionsScreenState extends State<TransactionsScreen>
                       controller: amountController,
                       decoration: const InputDecoration(
                         labelText: 'Amount',
-                        prefixText: '\$',
+                        prefixText: appCurrencySymbol,
                       ),
                       keyboardType: TextInputType.number,
                       validator: (value) {

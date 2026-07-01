@@ -6,6 +6,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import '../models/tenant.dart';
 import '../models/asset.dart';
+import '../utils/currency_format.dart';
 
 class TenantsScreen extends StatelessWidget {
   const TenantsScreen({super.key});
@@ -217,7 +218,7 @@ class TenantsScreen extends StatelessWidget {
               children: [
                 const Icon(Icons.payments, size: 16),
                 const SizedBox(width: 8),
-                Text('Advance: ₹${tenant.advanceAmount!.toStringAsFixed(2)}'),
+                Text('Advance: ${formatCurrency(tenant.advanceAmount!, decimalDigits: 2)}'),
               ],
             ),
           ],
