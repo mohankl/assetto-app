@@ -8,6 +8,7 @@ Transaction _rent({
   required int month,
   required int day,
   String status = 'pending',
+  String description = '',
 }) {
   final date = DateTime(year, month, day).millisecondsSinceEpoch;
   return Transaction(
@@ -17,7 +18,7 @@ Transaction _rent({
     amount: 9200,
     type: 'rent',
     status: status,
-    description: '$month/$year rent',
+    description: description,
     date: date,
     createdAt: date,
     updatedAt: date,
@@ -49,6 +50,28 @@ void main() {
     expect(month, DateTime(2026, 7, 1));
   });
 
+  test('uses billing month from invoice description when date differs', () {
+    final transaction = Transaction(
+      id: 'june-invoice',
+      assetId: 'asset-1',
+      tenantId: 'tenant-1',
+      amount: 9200,
+      type: 'rent',
+      status: 'pending',
+      description: 'June 2026 invoice system entry',
+      date: DateTime(2026, 4, 30).millisecondsSinceEpoch,
+      createdAt: DateTime(2026, 4, 30).millisecondsSinceEpoch,
+      updatedAt: DateTime(2026, 4, 30).millisecondsSinceEpoch,
+    );
+
+    expect(
+      resolveTransactionBillingMonth(transaction),
+      DateTime(2026, 6, 1),
+    );
+    expect(isRentInBillingMonth(transaction, DateTime(2026, 6, 1)), isTrue);
+    expect(isRentInBillingMonth(transaction, DateTime(2026, 4, 1)), isFalse);
+  });
+
   test('keeps previous month active before new invoices exist', () {
     final transactions = [
       _rent(year: 2026, month: 6, day: 30, status: 'pending'),
@@ -62,5 +85,34 @@ void main() {
     );
 
     expect(month, DateTime(2026, 6, 1));
+  });
+
+  test('includes june pending rent in june financial summary on july 1', () {
+    final transactions = [
+      Transaction(
+        id: 'june-invoice',
+        assetId: 'asset-1',
+        tenantId: 'tenant-1',
+        amount: 9500,
+        type: 'rent',
+        status: 'pending',
+        description: 'June 2026 invoice system entry',
+        date: DateTime(2026, 4, 30).millisecondsSinceEpoch,
+        createdAt: DateTime(2026, 4, 30).millisecondsSinceEpoch,
+        updatedAt: DateTime(2026, 4, 30).millisecondsSinceEpoch,
+      ),
+    ];
+
+    final activeMonth = resolveActiveBillingMonth(
+      transactions,
+      referenceDate: DateTime(2026, 7, 1),
+    );
+    final juneRent = rentTransactionsForBillingMonth(transactions, activeMonth);
+    final pendingIncome = juneRent
+        .where((transaction) => transaction.status == 'pending')
+        .fold<double>(0, (sum, transaction) => sum + transaction.amount);
+
+    expect(activeMonth, DateTime(2026, 6, 1));
+    expect(pendingIncome, 9500);
   });
 }

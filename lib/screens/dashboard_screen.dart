@@ -46,17 +46,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
         )
         .length;
 
-    // Calculate income and expenses for the specific month (excluding cancelled transactions)
-    final monthlyTransactions = transactions.where((t) {
-      final transactionDate = DateTime.fromMillisecondsSinceEpoch(t.date);
-      return transactionDate.year == month.year &&
-          transactionDate.month == month.month &&
-          t.status.toLowerCase() != 'cancelled';
-    }).toList();
-
-    final monthlyRentTransactions = monthlyTransactions
-        .where((t) => t.type.toLowerCase() == 'rent')
-        .toList();
+    // Rent income uses the billing month from invoice descriptions, not only
+    // the recorded transaction date (which can fall in a different month).
+    final monthlyRentTransactions =
+        rentTransactionsForBillingMonth(transactions, month);
 
     final receivedIncome = monthlyRentTransactions
         .where((t) => t.status.toLowerCase() == 'completed')
@@ -69,9 +62,25 @@ class _DashboardScreenState extends State<DashboardScreen> {
     // Expected rent for the month equals outstanding plus collected amounts.
     final expectedIncome = pendingIncome + receivedIncome;
 
-    final totalExpenses = monthlyTransactions
-        .where((t) => t.type.toLowerCase() == 'expense')
-        .fold(0.0, (sum, t) => sum + t.amount);
+    final totalExpenses = transactions.where((t) {
+      if (t.type.toLowerCase() != 'expense') return false;
+      if (t.status.toLowerCase() == 'cancelled') return false;
+
+      final transactionDate = DateTime.fromMillisecondsSinceEpoch(t.date);
+      return transactionDate.year == month.year &&
+          transactionDate.month == month.month;
+    }).fold(0.0, (sum, t) => sum + t.amount);
+
+    final monthlyTransactions = transactions.where((t) {
+      if (t.status.toLowerCase() == 'cancelled') return false;
+      if (t.type.toLowerCase() == 'rent') {
+        return isRentInBillingMonth(t, month);
+      }
+
+      final transactionDate = DateTime.fromMillisecondsSinceEpoch(t.date);
+      return transactionDate.year == month.year &&
+          transactionDate.month == month.month;
+    }).toList();
 
     // All outstanding pending rent dues across every month.
     final Map<String, List<dynamic>> unpaidTenantsWithTransactions = {};

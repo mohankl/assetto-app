@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-const String assettoAppIconAsset = 'assets/images/asset_icon.png';
+const String assettoAppIconAsset = 'assets/images/assetto_app_icon.png';
 
 class AssettoAppIcon extends StatelessWidget {
   final double size;
